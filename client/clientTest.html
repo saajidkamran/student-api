@@ -2,50 +2,104 @@
 <html>
   <head><meta charset="utf-8"><title>Socket.IO Attendance Test</title></head>
   <body>
-    <h3>Socket status: <span id="status">connecting…</span></h3>
-    <div>
-      <label>Class ID: <input id="classId" type="number" value="1"></label>
-      <button id="join">Join</button>
-      <button id="leave">Leave</button>
+    <h3>Socket: <span id="status">connecting…</span></h3>
+    <div style="margin-bottom:8px">
+      <label>Namespace (optional): <input id="ns" value=""></label>
+      <button id="reconnect">Reconnect</button>
     </div>
-    <pre id="log"></pre>
+    <div style="margin-bottom:8px">
+      <label>Class ID: <input id="classId" type="number" value="1"></label>
+      <button id="join">Join class</button>
+      <button id="leave">Leave class</button>
+      <button id="joinAll">Join ALL</button>
+      <button id="leaveAll">Leave ALL</button>
+    </div>
+    <pre id="log" style="background:#111;color:#0f0;padding:8px;max-height:50vh;overflow:auto"></pre>
 
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
     <script>
       const statusEl = document.getElementById('status');
       const logEl = document.getElementById('log');
+      const nsEl = document.getElementById('ns');
+      const classIdEl = document.getElementById('classId');
 
       const log = (msg, obj) => {
-        logEl.textContent += `\n${new Date().toLocaleTimeString()}  ${msg}${obj ? ' ' + JSON.stringify(obj) : ''}`;
+        const line = `${new Date().toLocaleTimeString()}  ${msg}${obj ? ' ' + JSON.stringify(obj) : ''}\n`;
+        logEl.textContent += line;
+        logEl.scrollTop = logEl.scrollHeight;
       };
 
-      const socket = io("http://localhost:3000"); // your API
+      let socket;
+      const joinedClasses = new Set();
+      let joinedAll = false;
 
-      socket.on("connect", () => {
-        statusEl.textContent = `connected (${socket.id})`;
-        log("connected", { id: socket.id });
-      });
+      function connect() {
+        const namespace = nsEl.value.trim(); // e.g., "/v1" if you made a socket namespace
+        if (socket) socket.disconnect();
 
-      socket.on("connect_error", (err) => {
-        statusEl.textContent = `connect_error`;
-        log("connect_error", { message: err.message });
-      });
+        socket = io(`http://localhost:3000${namespace}`);
+        statusEl.textContent = 'connecting…';
 
-      // ✅ Attendance updates come here
-      socket.on("attendance:update", (payload) => {
-        log("attendance:update", payload);
-      });
+        socket.on('connect', () => {
+          statusEl.textContent = `connected (${socket.id})`;
+          log('connected', { id: socket.id, namespace: namespace || '/' });
 
-      // Join/leave room
+          // auto re-join rooms on (re)connect
+          joinedClasses.forEach((cid) => {
+            socket.emit('join_class', { classId: cid }, (ack) => log('rejoin_class ack', ack));
+          });
+          if (joinedAll) socket.emit('join_all', null, (ack) => log('rejoin_all ack', ack));
+        });
+
+        socket.on('disconnect', (reason) => {
+          statusEl.textContent = `disconnected (${reason})`;
+          log('disconnect', { reason });
+        });
+
+        socket.on('connect_error', (err) => {
+          statusEl.textContent = 'connect_error';
+          log('connect_error', { message: err.message });
+        });
+
+        // Optional server greeting
+        socket.on('server:hello', (p) => log('server:hello', p));
+
+        // ✅ Real-time attendance
+        socket.on('attendance:update', (payload) => log('attendance:update', payload));
+      }
+
+      // Initial connect
+      connect();
+
+      // UI actions
+      document.getElementById('reconnect').onclick = connect;
+
       document.getElementById('join').onclick = () => {
-        const classId = Number(document.getElementById('classId').value);
-        socket.emit("join_class", { classId });   // <-- send object, not just 1
-        log("join_class sent", { classId });
+        const classId = Number(classIdEl.value);
+        if (!classId) return;
+        socket.emit('join_class', { classId }, (ack) => log('join_class ack', ack));
+        joinedClasses.add(classId);
+        log('join_class sent', { classId });
       };
+
       document.getElementById('leave').onclick = () => {
-        const classId = Number(document.getElementById('classId').value);
-        socket.emit("leave_class", { classId });
-        log("leave_class sent", { classId });
+        const classId = Number(classIdEl.value);
+        if (!classId) return;
+        socket.emit('leave_class', { classId });
+        joinedClasses.delete(classId);
+        log('leave_class sent', { classId });
+      };
+
+      document.getElementById('joinAll').onclick = () => {
+        socket.emit('join_all', null, (ack) => log('join_all ack', ack));
+        joinedAll = true;
+        log('join_all sent');
+      };
+
+      document.getElementById('leaveAll').onclick = () => {
+        socket.emit('leave_all');
+        joinedAll = false;
+        log('leave_all sent');
       };
     </script>
   </body>
