@@ -20,6 +20,7 @@ export default fp(async (fastify: FastifyInstance) => {
       if (!classId || Number.isNaN(classId)) return;
       socket.join(`class:${classId}`);
     });
+
     // Client  join all classroom to get real-time attendance updates
     socket.on("join_all", () => socket.join("class:all"));
 
@@ -32,7 +33,6 @@ export default fp(async (fastify: FastifyInstance) => {
   fastify.decorate("io", io);
 
   fastify.addHook("onClose", async () => {
-    // io.close() is optional; Fastify server close will drop it.
     io.removeAllListeners();
   });
 });
