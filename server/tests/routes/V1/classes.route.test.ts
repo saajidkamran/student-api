@@ -1,14 +1,9 @@
 import Fastify from 'fastify';
 import classesRoutes from '../../../src/routes/v1/classes.js';
 
-// minimal fake DB + repo by decorating fastify.db and intercepting repo inside route file
-// Easiest trick: monkey-patch makeClassRepo via jest.mock.
-// But since routes import repo directly, we can decorate fastify.db to satisfy repo calls.
-// For unit-ish route test, we can stub fastify.db.query/execute used by repo.
-
 test('POST /classes creates a class', async () => {
   const app = Fastify();
-  // Fake db used by makeClassRepo
+
   (app as any).decorate('db', {
     execute: async (_sql: string, _params: any[]) => [{ insertId: 123 }],
     query: async () => [ [] ]

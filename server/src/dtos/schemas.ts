@@ -1,4 +1,3 @@
-//  Zod schemas for validation
 import { z } from "zod";
 
 export const createClassDto = z.object({ name: z.string().min(1).max(100) });

@@ -20,7 +20,7 @@ export type Attendance = {
   date: string; //TODO: change to date type
   status: AttendanceStatus;
 };
-// domain/types.ts
+
 export type AttendanceFilters = {
   classId?: number | undefined;
   date?: string | undefined;

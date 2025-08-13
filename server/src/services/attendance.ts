@@ -13,8 +13,11 @@ export const makeAttendanceService = (deps: {
 }) => ({
   async markAttendance(input: UpsertAttendance & { status: AttendanceStatus }) {
     const record = await deps.upsert(input);
+    
+    //Access a Class
     deps.io.to(`class:${record.classId}`).emit("attendance:update", record);
-
+   
+    //Access global
     deps.io.to("class:all").emit("attendance:update", record);
     return record;
   },

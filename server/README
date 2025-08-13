@@ -131,6 +131,7 @@ A prebuilt collection & environment are available from earlier steps. If you nee
 - Pagination on list endpoints
 - Unit test for all
 - Integration test
+- Autharization for every end point with ACL control and  can crete a user table 
 
 ---
 
