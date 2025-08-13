@@ -1,0 +1,138 @@
+# School Period Attendance API (Fastify · TypeScript · MySQL · Socket.IO)
+
+A clean, **functional-programming (FP)** backend that manages classes, students, periods, and attendance per period — with **real‑time** updates via Socket.IO. The code follows FP-style dependency injection and SOLID-friendly boundaries (small modules, explicit capabilities).
+
+## Features
+- Manage **Classes**, **Students**, **Periods**
+- **Mark attendance** (PRESENT / ABSENT / LATE) per **student + period + date**
+- **Duplicate prevention** via DB unique key + upsert
+- **Real-time** `attendance:update` events to class-specific rooms (and optional global room)
+- Versioned REST API: **`/api/v1`** (path-based versioning)
+- Input validation with **Zod**
+- Jest unit tests for services; lightweight route tests using `fastify.inject`
+
+---
+
+## Tech stack
+- **Runtime**: Node.js + **Fastify** (ESM TypeScript)
+- **DB**: MySQL (**mysql2/promise**) + schema SQL + tiny migration runner
+- **Realtime**: **Socket.IO** (rooms per class, optional `class:all` room)
+- **Validation**: Zod
+- **Tests**: Jest + ts-jest (ESM)
+
+---
+
+## Project structure
+
+## Database schema (ERD)
+```
+classes   (id, name)
+students  (id, full_name, class_id)
+periods   (id, class_id, name, start_time, end_time)
+attendance(id, student_id, period_id, class_id, date, status, ...)
+UNIQUE (student_id, period_id, date)
+```
+
+
+
+## Setup
+
+### 1) Install deps
+```bash
+npm i
+```
+
+### 2) Configure environment
+Create `.env` (or export vars before running):
+```
+DB_HOST=127.0.0.1
+DB_USER=<your_user>
+DB_PASSWORD=<your_pass>
+DB_NAME=school
+PORT=3000
+```
+
+### 3) Create DB schema
+
+
+**Migration runner**
+```bash
+npm run migrate
+```
+> Add `src/scripts/runMigrations.ts` to run all `sql/migrations/*.sql` files (see docs below).
+
+### 4) Start the API
+```bash
+npm run dev
+# or
+npm run build && npm start
+```
+
+### 5) Health checks
+```bash
+curl -s http://localhost:3000/health
+```
+
+---
+
+## API (v1)
+
+- Base URL: **`http://localhost:3000/api/v1`**
+- Full endpoint details with examples live in **[docs/API.md](docs/API.md)**
+
+### Endpoints quick list
+- **Classes**: `POST /classes`, `GET /classes`
+- **Students**: `POST /students`, `GET /students?classId=`
+- **Periods**: `POST /periods`, `GET /periods?classId=`
+- **Attendance**: `POST /attendance`, `GET /attendance?classId=&date=&periodId=`
+- **Health (non-versioned)**: `GET /health`, 
+
+---
+
+## Realtime (Socket.IO)
+- Connect to server (default path: `/socket.io`)
+- Join a room for a specific class:
+  ```js
+  const s = io('http://localhost:3000');
+  s.emit('join_class', { classId: 1 });
+  s.on('attendance:update', (payload) => console.log(payload));
+  ```
+- On attendance upsert, server emits to `class`:
+  ```ts
+  io.to(`class:${record.classId}`).emit('attendance:update', record);
+  ```
+- Optional: a global room `class:all`, join via `join_all` to get **all** updates.
+
+See **“Realtime events”** in [docs/API.md](docs/API.md) for details and a ready-to-run HTML test client.
+
+
+
+## Testing
+```bash
+npm test
+npm run test:watch
+npm run coverage
+```
+- Unit tests focus on **services** (pure functions) with fake repos / fake `io`.
+- Route tests use **Fastify’s `inject`** and a stubbed `fastify.db`.
+
+
+
+## Postman
+A prebuilt collection & environment are available from earlier steps. If you need an updated set with `/api/v1`
+
+---
+
+## Roadmap / nice-to-haves
+- `@fastify/swagger` docs at `/api/v1/docs`
+- Auth (API key/JWT), role‑based room join (`join_all` for admins only)
+- Consistency guard: ensure `studentId` and `periodId` belong to the same `classId`
+- Audit log for attendance changes
+- Pagination on list endpoints
+- Unit test for all
+- Integration test
+
+---
+
+## License
+MIT (or your preferred license).
