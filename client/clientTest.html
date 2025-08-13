@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>Socket.IO Attendance Test</title></head>
+  <body>
+    <h3>Socket status: <span id="status">connecting…</span></h3>
+    <div>
+      <label>Class ID: <input id="classId" type="number" value="1"></label>
+      <button id="join">Join</button>
+      <button id="leave">Leave</button>
+    </div>
+    <pre id="log"></pre>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+    <script>
+      const statusEl = document.getElementById('status');
+      const logEl = document.getElementById('log');
+
+      const log = (msg, obj) => {
+        logEl.textContent += `\n${new Date().toLocaleTimeString()}  ${msg}${obj ? ' ' + JSON.stringify(obj) : ''}`;
+      };
+
+      const socket = io("http://localhost:3000"); // your API
+
+      socket.on("connect", () => {
+        statusEl.textContent = `connected (${socket.id})`;
+        log("connected", { id: socket.id });
+      });
+
+      socket.on("connect_error", (err) => {
+        statusEl.textContent = `connect_error`;
+        log("connect_error", { message: err.message });
+      });
+
+      // ✅ Attendance updates come here
+      socket.on("attendance:update", (payload) => {
+        log("attendance:update", payload);
+      });
+
+      // Join/leave room
+      document.getElementById('join').onclick = () => {
+        const classId = Number(document.getElementById('classId').value);
+        socket.emit("join_class", { classId });   // <-- send object, not just 1
+        log("join_class sent", { classId });
+      };
+      document.getElementById('leave').onclick = () => {
+        const classId = Number(document.getElementById('classId').value);
+        socket.emit("leave_class", { classId });
+        log("leave_class sent", { classId });
+      };
+    </script>
+  </body>
+</html>
